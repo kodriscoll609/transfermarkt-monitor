@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: transfermarkt_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: transfermarkt
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  scraper:
+    build: .
+    container_name: transfermarkt_scraper
+    depends_on:
+      - db
+    environment:
+      DB_URL: postgresql+psycopg2://user:password@db:5432/transfermarkt
+    volumes:
+      - .:/app
+    command: ["python", "main.py"]
+
+volumes:
+  pgdata:
