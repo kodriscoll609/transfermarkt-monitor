@@ -23,35 +23,32 @@ blacklist_league_codes = {
     "GC23", "19YL", "CLIY", "berater"
 }
 
-def table(table, db = "transfermarkt.db"):
-    conn = sqlite3.connect(db)
+
+# def hash_row(row):
+#     # Select only non-metadata fields
+#     selection = [col for col in row.index if col not in ['hash_key', 'effective_start_date', 'effective_end_date']]
+#     row_string = ''.join(str(row[col]) for col in selection)
+#     return hashlib.sha256(row_string.encode()).hexdigest()
+
+
+def historize(df):
     
-    query = f"SELECT * FROM {table}"
-    df = pd.read_sql_query(query, conn)
-
-    conn.close()
+    # hash row
+    def hash_row(row):
+        
+        #exclude metadata fields
+        selection = [col for col in row.index if col not in ['hash_key', 'effective_start_date', 'effective_end_date']]
+        row_string = ''.join(str(row[col]) for col in selection)
+        return hashlib.sha256(row_string.encode()).hexdigest()
+    df['hash_key'] = df.apply(hash_row, axis=1) 
+    df = df.drop_duplicates(subset=["hash_key"]).reset_index(drop=True)
     
-    return df
-
-def append_table(df, table_name, db = "transfermarkt.db"):
-    conn = sqlite3.connect(db)
-
-    # Save DataFrame to a new table (schema) named "players"
-    df.to_sql(table_name, conn, if_exists="append", index=False)
-
-    # Close connection
-    conn.close()
-
-def hash_row(row):
-    row_string = ''.join(str(value) for value in row.values)
-    return hashlib.sha256(row_string.encode()).hexdigest()
-
-def historizer(df):
-    df['hash_key'] = df.apply(hash_row, axis=1)
-    df = df.drop_duplicates(subset = ["hash_key"]).reset_index(drop = True)
+    # Set validity dates
     df['effective_start_date'] = datetime.today().date()
     df['effective_end_date'] = pd.to_datetime('2099-12-31').date()
+    
     return df
+
 
 def get_soup(url):
     time.sleep(random.uniform(1, 5))
@@ -102,7 +99,42 @@ def get_teams(url):
     else:
         print(f"Request failed with status code {response.status_code} ({url})")
         
+
+
+#sqlite3 Functions
+
+def table(table, db = "transfermarkt.db"):
+    
+    """Shortcut to load a sqlite3 table"""
+    
+    conn = sqlite3.connect(db)
+    
+    query = f"SELECT * FROM {table}"
+    df = pd.read_sql_query(query, conn)
+
+    conn.close()
+    
+    return df
+
+def tables(db_path = "transfermarkt.db"):
+    
+    """This function lists all of the tables in a given database"""
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    return tables
+
 def load_keys(table, primary_key, db = "transfermarkt.db"):
+    
+    """ 
+    This function loads primary kays and hash_keys from a given table.
+    It's used to check for updates during historization.
+    """
     conn = sqlite3.connect(db)
 
     # SQL query to fetch data
@@ -115,3 +147,31 @@ def load_keys(table, primary_key, db = "transfermarkt.db"):
     conn.close()
     
     return df
+
+def replace_table(table_name, df, db = "transfermarkt.db"):
+    
+    """The function drops (if exists) and replaces a table in the database"""
+    
+    print("Are you sure you want to overwrite this table? This will overwrite the existing data permanently (y/n)")
+    x = input()
+    
+    if x == 'y':
+        conn = sqlite3.connect(db)
+
+        # Save DataFrame to a new table (schema) named "players"
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+
+        # Close connection
+        conn.close()
+    
+def append_table(df, table_name, db = "transfermarkt.db"):
+    
+    """This function appends data to an existing db"""
+    
+    conn = sqlite3.connect(db)
+
+    # Save DataFrame to a new table (schema) named "players"
+    df.to_sql(table_name, conn, if_exists="append", index=False)
+
+    # Close connection
+    conn.close()
