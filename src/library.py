@@ -24,11 +24,11 @@ blacklist_league_codes = {
 }
 
 
-# def hash_row(row):
-#     # Select only non-metadata fields
-#     selection = [col for col in row.index if col not in ['hash_key', 'effective_start_date', 'effective_end_date']]
-#     row_string = ''.join(str(row[col]) for col in selection)
-#     return hashlib.sha256(row_string.encode()).hexdigest()
+def hash_row(row):
+    # Select only non-metadata fields
+    selection = [col for col in row.index if col not in ['hash_key', 'effective_start_date', 'effective_end_date']]
+    row_string = ''.join(str(row[col]) for col in selection)
+    return hashlib.sha256(row_string.encode()).hexdigest()
 
 
 def historize(df):
@@ -38,8 +38,10 @@ def historize(df):
         
         #exclude metadata fields
         selection = [col for col in row.index if col not in ['hash_key', 'effective_start_date', 'effective_end_date']]
+        selection = [i for i in selection if ~i.endswith("_ID")]
         row_string = ''.join(str(row[col]) for col in selection)
         return hashlib.sha256(row_string.encode()).hexdigest()
+    
     df['hash_key'] = df.apply(hash_row, axis=1) 
     df = df.drop_duplicates(subset=["hash_key"]).reset_index(drop=True)
     
@@ -51,6 +53,7 @@ def historize(df):
 
 
 def get_soup(url):
+    
     time.sleep(random.uniform(1, 5))
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
@@ -60,6 +63,7 @@ def get_soup(url):
         return None
   
 def get_competitions():
+    
     url = "https://www.transfermarkt.com/wettbewerbe/national"
     soup = get_soup(url)
     if not soup:
@@ -80,8 +84,8 @@ def get_competitions():
 
     return competitions
 
-def get_teams(url):
-    print(url)
+def get_clubs(url):
+
     response = requests.get(url, headers=headers)
     time.sleep(random.uniform(1, 5))
     
@@ -99,7 +103,31 @@ def get_teams(url):
     else:
         print(f"Request failed with status code {response.status_code} ({url})")
         
+class Historize():
+    
+    """This class is used to add hash keys and effective dates to a pandas df"""
+    
+    def __init__(self, df, primary_key = False):
+        self.df = df
+        self.primary_key = primary_key
 
+    def __hash_list(self, li):
+        data = ' '.join(str(i) for i in li)
+        return hashlib.sha256(data.encode()).hexdigest()
+
+    def run(self):
+        
+        #1. Deduplicate
+        self.df = self.df.drop_duplicates().reset_index(drop=True)
+        
+        #2. Hash data (include only effective end_date in hash key - start date will change the key every refresh)
+        self.df['effective_end_date'] = pd.to_datetime('2099-12-31').date()
+        self.df['hash_key'] = self.df.apply(lambda row: self.__hash_list([row[i] for i in self.df.columns]), axis=1) 
+        self.df['effective_start_date'] = datetime.today().date()
+        
+        #3. Add ID
+        if self.primary_key:
+            self.df["ID"] = self.df.apply(lambda row: self.__hash_list([row[i] for i in self.primary_key]), axis=1)
 
 #sqlite3 Functions
 
@@ -129,6 +157,25 @@ def tables(db_path = "transfermarkt.db"):
     conn.close()
     return tables
 
+def drop_table(table_name, db_path = "transfermarkt.db"):
+    
+    """This function removes a table from the given database"""
+    
+    print(f"This action will permanently delete {table_name}. Continue? (y/n)")
+    x = input()
+    if x == "y":
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        conn.commit()
+
+        print(f"Table '{table_name}' dropped successfully (if it existed).")
+
+        conn.close()
+    else:
+        print("Aborted")
+    
 def load_keys(table, primary_key, db = "transfermarkt.db"):
     
     """ 
@@ -141,7 +188,7 @@ def load_keys(table, primary_key, db = "transfermarkt.db"):
     query = f"SELECT DISTINCT {', '.join(primary_key)}, hash_key FROM {table}"
 
     # Load data into a DataFrame
-    df = pd.read_sql_query(query, conn)
+    df = pd.read_sql_query(query, conn).assign(joined = 1).drop_duplicates().rename({"hash_key":"hash_key_current"}, axis = 1)
 
     # Close the connection
     conn.close()
