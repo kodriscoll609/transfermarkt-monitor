@@ -1,0 +1,40 @@
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+src/logs/
+src/run/
+
+# SQLite database files
+*.db
+
+# Environment files
+.env
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Spyder settings
+.spyderproject
+.spyproject
+
+# PyCharm
+.idea/
+
+# Ignore executed notebook outputs (optional)
+*executed.ipynb
