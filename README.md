@@ -5,3 +5,5 @@ This project tracks player transfer values from Transfermarkt by running a full 
 Player data is only updated when something actually changes — each record is hashed and compared to keep storage efficient. Logs are written for each run, and the scraper handles errors like timeouts or blocking by using custom headers and retry logic with exponential backoff.
 
 The scraping flow goes step by step: it starts by pulling league names, then clubs, then players. Each stage depends on the one before it.
+
+Run this daily to build a history of transfer market values of players tracked by Transfermarkt.
