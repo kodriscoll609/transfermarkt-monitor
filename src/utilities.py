@@ -161,10 +161,10 @@ def commit_changes(df, table_name, primary_key, db_path="transfermarkt.db"):
 
     logging.info(f"{len(update_keys)} records being updated - effective_end_date == {yesterday}\n")
     print("Continue? (y/n)")
-    x = input()
-    if x.lower() != 'y':
-        print("Aborting update.")
-        return
+#     x = input()
+#     if x.lower() != 'y':
+#         print("Aborting update.")
+#         return
 
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()

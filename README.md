@@ -6,4 +6,4 @@ Player data is only updated when something actually changes — each record is h
 
 The scraping flow goes step by step: it starts by pulling league names, then clubs, then players. Each stage depends on the one before it.
 
-Run this daily to build a history of transfer market values of players tracked by Transfermarkt.
+In order to begin building a database of player market values, run "src\0_scraper.py" or "src\0_scraper.ipynb" daily. The tables will be saved to a local .db file.
